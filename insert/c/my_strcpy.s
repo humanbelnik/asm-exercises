@@ -1,19 +1,38 @@
 section .text
 global _my_strcpy
 
+; 32-bit _cdecl calling convention unsupported.
+;
+; Using AMD64 Calling convention on Intel:
+; RDI  - ptr to dest
+; RSI  - ptr to src
+; RDX  - copy size
+
 _my_strcpy:
-    ; [rdi] - указатель на целевую строку (dest)
-    ; [rsi] - указатель на исходную строку (src)
-    ; [rdx] - длина строки (len)
+    cmp rdi, rsi
+    je .finish
+    jb .forward
 
-    test    rdx, rdx
-    jz      .exit
+    mov rcx, rsi
+    add rcx, rdx
+    cmp rdi, rcx
+    jae .forward
 
-    .copy_loop:
-        movsb                    
-        dec     rdx              
-        jnz     .copy_loop        
+    .backward:
+        std
+        mov rcx, rdx
+        dec rdx
+        add rsi, rdx
+        add rdi, rdx
 
-    .exit:
+        rep movsb
 
-        ret  
+        cld
+        jmp .finish
+
+    .forward:
+        mov rcx, rdx
+        rep movsb
+
+    .finish:
+        ret

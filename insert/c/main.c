@@ -1,54 +1,135 @@
-//! Using Intel synatax.
-//! Compile: gcc -masm=intel main.c
- 
 #include <stdio.h>
 #include <string.h>
-
-
-size_t getlen(const char* str_prt);
+#include <assert.h>
 
 // Implemented in my_strcpy.s 
-void  my_strcpy(char *dest, const char *src, const size_t len);
+extern void my_strcpy(char *dest, const char *src, const size_t len);
+size_t my_strlen(const char* str_prt);
+
+typedef struct {
+    char *description;
+    char *str;
+    size_t expected;
+    size_t actual;
+} strlen_test_t;
+
+void strlen_test() 
+{
+    strlen_test_t tt[] = {
+        {
+            .description = "Length is equal to zero",
+            .str = "",
+            .expected = strlen(""),
+        },
+        {
+            .description = "Length is not zero",
+            .str = "get my length!",
+            .expected = strlen("get my length!")
+        }
+    };
+
+    size_t len = sizeof(tt)/sizeof(tt[0]);
+    for (size_t i = 0; i < len; i++) {
+        printf("test %zu : %s\n", i + 1, tt[i].description);
+        tt[i].actual = my_strlen(tt[i].str);
+        assert(tt[i].actual == tt[i].expected);
+        printf("ok\n");
+    }
+}
+
+typedef struct {
+    char *description;   
+    char *expected;
+    size_t src_offset;
+    size_t dst_offset;
+    size_t len;
+} strcpy_test_t;
+
+void strcpy_test()
+{
+    // pool = aaabbbccc\0
+    char pool[9 + 1] = { 0 };
+    memset(pool, 'a', 3);
+    memset(pool+3, 'b', 3);
+    memset(pool+6, 'c', 3);
+
+    strcpy_test_t tt[] = {
+        {
+            .description = "Uncovered: front to back",
+            .expected = "aaabbbaaa",
+            .src_offset = 0,
+            .dst_offset = 6,
+            .len = 3
+        },
+        {
+            .description = "Uncovered: back to front",
+            .expected = "cccbbbccc",
+            .src_offset = 6,
+            .dst_offset = 0,
+            .len = 3
+        },
+        {   
+            .description = "Covered: front to back",
+            .expected = "aaaabbbcc",
+            .src_offset = 2,
+            .dst_offset = 3,
+            .len = 4
+        },
+        {
+            .description = "Covered: back to front",
+            .expected = "aabbbbccc",
+            .src_offset = 3,
+            .dst_offset = 2,
+            .len = 3
+        },
+        {
+            .description = "Covered: back to front",
+            .expected = "aabbbbccc",
+            .src_offset = 1,
+            .dst_offset = 0,
+            .len = 3
+        }
+
+    };
+
+    size_t n = sizeof(tt)/sizeof(tt[0]);
+    char tpool[20] = { 0 };
+    for (size_t i = 0; i < n; ++i) {
+        printf("test %zu : %s\n", i + 1, tt[i].description);
+        strcpy(tpool, pool);
+        printf("Test pool before copy=[%s]\n", tpool);
+        my_strcpy(tpool + tt[i].dst_offset, tpool + tt[i].src_offset, tt[i].len);
+        printf(
+            "Test pool after copy=[%s]\n"
+            "Expected=[%s]\n"
+        , tpool, tt[i].expected);
+        assert(strcmp(tt[i].expected, tpool) == 0);
+        printf("ok\n");
+    }
+
+ 
+}
 
 int main(void)
 {
-    char s[] = "Calculate my length!";
-    size_t len = getlen(s);
-    printf(
-        "String surrounded by []:\n"
-        "[%s]\n\n"
-        "String's length:\n"
-        "stdlib strlen(): %zu\n"
-        "assembly: %zu\n",
-        s ,strlen(s), len 
-    );
-
-    // Cannot use char* s_dst cause string literal is a constant
-    char s_dst[]  = "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$";
-    printf(
-        "Before copy surrounded by []\n"
-        "[%s]\n\n", s_dst
-    );
-
-    my_strcpy(s, s+1, 5);
-    printf(
-        "Afters copy surrounded by []\n"
-        "[%s]\n", s
-    );
-
+    strlen_test();
+    strcpy_test();
     return 0;
 }
 
-size_t getlen(const char* str_ptr)
+size_t my_strlen(const char* str_ptr)
 {
     size_t l = 0;
 
-    // AL - target byte
-    // RDI -  byte to compare with target
-    // RCX - amount of compare iterations to perform (AMAP)
-    // Iterative scan until bytes are equal (ECX being substracted on each iter)
-    // neg - 2 => 0000 -> 0001 -> 1111 -> 1110 (single char) -> 1100 -> 0011 (-2) --> 0001
-    // Write result to RCX 
+    // C-type string is a 0-terminated byte array
+    // Idea is to go through array and compare current byte with 0 
+    
+    // Array traverse being performed with repne scasb instruction:
+    //      1. Store 'compare with' 0 byte in AL
+    //      2. Store string address in RDI
+    //      3. Load amount of iterations in RCX (We don't know them yet so let's load AMAP)
+    //      4. Perform some magic conversion in order to get the len right:
+    //          "qwe" --> RCX = -1 = 0001 = 1110 = 1111 --> (-4): 1110 1101 1100 1011 --> (neg): 1010 0101 --> (sub 2): 0100 0011 OK!
 
     __asm__(
         "xor al, al\n"
@@ -58,11 +139,10 @@ size_t getlen(const char* str_ptr)
         "neg rcx\n"
         "sub rcx, 2\n"
         "mov %0, rcx\n"
-        : "=r"(l)  
-        : "r"(str_ptr)
-        : "rcx", "rdi", "al"
+        : "=r"(l)               // output parameter placed in some general register
+        : "r"(str_ptr)          // input parameter placed in some general register
+        : "rcx", "rdi", "al"    // registers that will be unsed in assembly insertion
     );
 
     return l;
 }
-
