@@ -18,7 +18,6 @@ EXTRN readSignedDecimal: near
 EXTRN printUnsignedBin: near
 EXTRN printSignedHex: near
 EXTRN printMinPow: near
-EXTRN printBino: near
 
 StackSeg SEGMENT PARA STACK 'STACK'
     db 100h dup(0)
@@ -46,7 +45,7 @@ DataSeg SEGMENT PARA PUBLIC 'DATA'
     inputPrompt db "Input (-32768; 32767): $"
     panicReadingPrompt db "Panic: 16-bit integer overflow. $"
 
-    funcPtrList dw readSignedDecimal, printUnsignedBin, printSignedHex, printMinPow, exit, printBino
+    funcPtrList dw readSignedDecimal, printUnsignedBin, printSignedHex, printMinPow, exit
 DataSeg ENDS
 
 CodeSeg SEGMENT PARA  PUBLIC 'CODE'

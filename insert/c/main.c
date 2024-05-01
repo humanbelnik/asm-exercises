@@ -3,7 +3,7 @@
 #include <assert.h>
 
 // Implemented in my_strcpy.s 
-extern void my_strcpy(char *dest, const char *src, const size_t len);
+void my_strcpy(char *dest, const char *src, const size_t len);
 size_t my_strlen(const char* str_prt);
 
 typedef struct {
@@ -83,7 +83,7 @@ void strcpy_test()
             .len = 3
         },
         {
-            .description = "Covered: back to front",
+            .description = "Covered: back to front, copied chars not equal",
             .expected = "aabbbbccc",
             .src_offset = 1,
             .dst_offset = 0,
@@ -97,12 +97,7 @@ void strcpy_test()
     for (size_t i = 0; i < n; ++i) {
         printf("test %zu : %s\n", i + 1, tt[i].description);
         strcpy(tpool, pool);
-        printf("Test pool before copy=[%s]\n", tpool);
         my_strcpy(tpool + tt[i].dst_offset, tpool + tt[i].src_offset, tt[i].len);
-        printf(
-            "Test pool after copy=[%s]\n"
-            "Expected=[%s]\n"
-        , tpool, tt[i].expected);
         assert(strcmp(tt[i].expected, tpool) == 0);
         printf("ok\n");
     }
@@ -141,7 +136,7 @@ size_t my_strlen(const char* str_ptr)
         "mov %0, rcx\n"
         : "=r"(l)               // output parameter placed in some general register
         : "r"(str_ptr)          // input parameter placed in some general register
-        : "rcx", "rdi", "al"    // registers that will be unsed in assembly insertion
+        : "rcx", "rdi", "al"    // registers that will be used in assembly insertion -> pushed onto the stack
     );
 
     return l;

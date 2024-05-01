@@ -8,6 +8,9 @@ global _my_strcpy
 ; RSI  - ptr to src
 ; RDX  - copy size
 
+; Using 'rep movsb' - copy byte from rsi to rdi 'rcx' times.
+; rsi & rdi change determined by the DF flag
+; The only situation we need to copy backwards - dst > src && dst - src < len
 _my_strcpy:
     cmp rdi, rsi
     je .finish
@@ -25,7 +28,7 @@ _my_strcpy:
         add rsi, rdx
         add rdi, rdx
 
-        rep movsb
+        rep movsb     
 
         cld
         jmp .finish
