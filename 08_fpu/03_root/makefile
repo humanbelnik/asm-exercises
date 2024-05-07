@@ -1,3 +1,5 @@
+all: run
+
 run: main.exe
 	./main.exe
 
