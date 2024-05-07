@@ -28,10 +28,10 @@ int main()
     printf("enter interval amount of iterations: ");
     scanf("%zu", &iterc);
 
-    double resC = rootC(beg, end, iterc, g);
+    double resC = rootC(beg, end, iterc, f);
     printf("root in pure C=%lf\n", resC);
 
-    double resASM = rootASM(beg, end, iterc, g);
+    double resASM = rootASM(beg, end, iterc, f);
     printf("root (midpoint calcultaion is optimised with FPU)=%lf\n", resASM);
 }
 
