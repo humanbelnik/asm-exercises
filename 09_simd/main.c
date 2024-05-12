@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define BILLION 1000000000L
+
 void fill_random(float *matrix, int size) {
     for (int i = 0; i < size * size; i++) {
         matrix[i] = (float)rand() / RAND_MAX; 
@@ -58,24 +60,22 @@ void dotprodSSE(float *m1, float *m2, float *res, int size)
             float *col = m2 + k * size;
 
             float sum = 0;
-            for (int j = 0; j < size/4; j++) {
-                float r[4] = { 0 };
-                
+            for (int j = 0; j < size/4; j++) {                
                 float* rowBlock = row + j * 4; 
                 float* colBlock = col + j * 4; 
+                float r = 0.0;
 
                 __asm__ (
                     "movups xmm1, %1\n"
                     "movups xmm2, %2\n"
                     "mulps xmm1, xmm2\n"
+                    "haddps xmm1, xmm1\n"
                     "movups %0, xmm1\n"
                     : "=m"(r)
                     : "m"(*rowBlock), "m"(*colBlock)
                     : "xmm0", "xmm1", "xmm2" 
                 );
-                for (size_t e = 0; e < 4; e++) {
-                    sum += r[e];
-                }
+                sum += r;
             }
             
             res[i * size + k] = sum;
@@ -85,37 +85,51 @@ void dotprodSSE(float *m1, float *m2, float *res, int size)
 
 
 
-int main(void)
+int main(int argc, char **argv)
 {
-    int size;
+    int size = atoi(argv[1]); 
 
-    printf("Enter the size of the square matrices: ");
-    scanf("%d", &size);
+    // printf("Enter the size of the square matrices: ");
+    // scanf("%d", &size);
 
     float *matrix1 = (float *)malloc(size * size * sizeof(float));
     float *matrix2 = (float *)malloc(size * size * sizeof(float));
     float *res = (float *)malloc(size * size * sizeof(float));
 
-    char choice;
-    printf("Do you want to fill the matrices yourself? (y/n): ");
-    scanf(" %c", &choice);
+    // char choice;
+    // printf("Do you want to fill the matrices yourself? (y/n): ");
+    // scanf(" %c", &choice);
 
-    if (choice == 'y' || choice == 'Y') {
-        input_matrix(matrix1, size);
-        input_matrix(matrix2, size);
-    } else {
-        fill_random(matrix1, size);
-        fill_random(matrix2, size);
+    // if (choice == 'y' || choice == 'Y') {
+    //     input_matrix(matrix1, size);
+    //     input_matrix(matrix2, size);
+    // } else {
+    //     fill_random(matrix1, size);
+    //     fill_random(matrix2, size);
+    // }
+
+    fill_random(matrix1, size);
+    fill_random(matrix2, size);
+
+    struct timespec start, end;
+    long long int diff;
+
+    { 
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        dotprodSSE(matrix1, matrix2, res, size);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        diff = BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
+        printf(" %lld ", diff);
     }
 
-    printf("\nMatrix 1:\n");
-    print_matrix(matrix1, size);
+    { 
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        dotprod(matrix1, matrix2, res, size);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        diff = BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
+        printf("%lld\n", diff);
+    }
 
-    printf("\nMatrix 2:\n");
-    print_matrix(matrix2, size);
-
-    dotprodSSE(matrix1, matrix2, res, size);
-    print_matrix(res, size);
 
     free(matrix1);
     free(matrix2);
