@@ -5,7 +5,7 @@
 float randFloat();
 double randDouble();
 
-#define N (size_t) 10000
+#define N (size_t) 1000
 #define BILLION 1000000000L
 
 
